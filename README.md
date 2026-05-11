@@ -5,7 +5,47 @@
 
 <br>
 
+## DPO-Shooting
+
+DPO-Shooting is a preference-optimized action sampling pipeline for latent world model planning.  
+Given a pretrained LeWM checkpoint, it first samples multiple candidate action plans, evaluates them with the latent world model, constructs preference pairs between better and worse plans, and then trains a DPO proposal policy to generate higher-quality action candidates for efficient planning.
+
+Compared with standard CEM shooting, DPO-Shooting aims to reduce the number of required sampled plans while preserving competitive planning performance.
+
+### Pipeline
+
+The full pipeline includes the following stages:
+
+1. **Load a pretrained LeWM checkpoint**  
+   The LeWM model is used as the latent world model and cost model for evaluating candidate action sequences.
+
+2. **Generate candidate action plans**  
+   For each task instance, multiple action candidates are sampled under the current planning setup.
+
+3. **Construct preference pairs**  
+   Candidate plans are ranked according to their predicted planning quality, and preference pairs are built as:
+   - chosen plan: lower-cost / higher-quality action sequence
+   - rejected plan: higher-cost / lower-quality action sequence
+
+4. **Train the DPO proposal policy**  
+   A proposal policy is optimized with DPO to assign higher likelihood to preferred action sequences.
+
+5. **Evaluate DPO-Shooting**  
+   During planning, the trained proposal policy samples action candidates for latent-space shooting, improving sampling efficiency compared with purely random CEM-style proposals.
+
+### Usage
+
+After finishing the LeWM tutorial and preparing the pretrained checkpoints, run:
+
+```bash
+bash run_lewm_dpo_pipeline.sh cube
+bash run_lewm_dpo_pipeline.sh pusht
+bash run_lewm_dpo_pipeline.sh tworoom
+bash run_lewm_dpo_pipeline.sh reacher
+
 ```
+
+## Tutorial based on [Le-WM](https://github.com/lucas-maes/le-wm), see:
 
 ## Using the code
 This codebase builds on [stable-worldmodel](https://github.com/galilai-group/stable-worldmodel) for environment management, planning, and evaluation, and [stable-pretraining](https://github.com/galilai-group/stable-pretraining) for training. Together they reduce this repository to its core contribution: the model architecture and training objective.
@@ -53,7 +93,7 @@ Checkpoints are saved to `$STABLEWM_HOME` upon completion.
 
 For baseline scripts, see the stable-worldmodel [scripts](https://github.com/galilai-group/stable-worldmodel/tree/main/scripts/train) folder.
 
-## Planning
+## Baseline Planning (Full CEM)
 
 Evaluation configs live under `config/eval/`. Set the `policy` field to the checkpoint path **relative to `$STABLEWM_HOME`**, without the `_object.ckpt` suffix:
 
