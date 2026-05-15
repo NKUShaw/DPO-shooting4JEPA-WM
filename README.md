@@ -37,13 +37,7 @@ Unlike full CEM, this process does not perform iterative sampling, refitting, an
 Each sampled candidate plan is rolled out by the frozen LeWM predictor.  
 The predicted latent trajectory is scored using the latent cost with respect to the goal latent state.
 
-The candidate with the lowest predicted world-model cost is selected:
-
-\[
-a^*_{1:H} = \arg\min_{a^{(k)}_{1:H}} C(\hat{z}^{(k)}_H, z_g)
-\]
-
-Only the first action block of the selected plan is executed, following a receding-horizon planning setup.
+The candidate with the lowest predicted world-model cost is selected. Only the first action block of the selected plan is executed, following a receding-horizon planning setup.
 
 ### 5. Proposal-Shooting vs. Full CEM
 
