@@ -1,37 +1,58 @@
 
-# DPO-shooting4JEPA-WM
-### DPO-Shooting: Preference-Optimized Action Sampling for Efficient Latent World Model Planning
+## Pipeline
 
+The overall pipeline consists of two stages: offline proposal-policy training and online proposal-shooting evaluation.
 
-<br>
+### 1. Load the pretrained LeWM checkpoint
 
-## DPO-Shooting
+We first load a pretrained LeWM checkpoint and keep all world-model components frozen.  
+The frozen encoder maps the initial observation and goal observation into latent states, while the frozen predictor rolls out candidate action sequences in latent space.  
+The same LeWM model is also used as the cost model for scoring candidate plans.
 
-DPO-Shooting is a preference-optimized action sampling pipeline for latent world model planning.  
-Given a pretrained LeWM checkpoint, it first samples multiple candidate action plans, evaluates them with the latent world model, constructs preference pairs between better and worse plans, and then trains a DPO proposal policy to generate higher-quality action candidates for efficient planning.
+### 2. Train the proposal policy offline
 
-Compared with standard CEM shooting, DPO-Shooting aims to reduce the number of required sampled plans while preserving competitive planning performance.
+Given offline trajectories, we construct training segments containing:
 
-### Pipeline
+- the current context,
+- the goal observation,
+- and the corresponding future action plan.
 
-The full pipeline includes the following stages:
+A proposal policy is then trained to generate candidate action sequences conditioned on the current latent state and the goal latent state.
 
-1. **Load a pretrained LeWM checkpoint**  
-   The LeWM model is used as the latent world model and cost model for evaluating candidate action sequences.
+By default, the policy is trained with a behavior-cloning objective to imitate offline action plans.  
+Optionally, we further construct preference pairs using the frozen world-model cost:
 
-2. **Generate candidate action plans**  
-   For each task instance, multiple action candidates are sampled under the current planning setup.
+- **chosen plan**: lower-cost / higher-quality action sequence,
+- **rejected plan**: higher-cost / lower-quality action sequence.
 
-3. **Construct preference pairs**  
-   Candidate plans are ranked according to their predicted planning quality, and preference pairs are built as:
-   - chosen plan: lower-cost / higher-quality action sequence
-   - rejected plan: higher-cost / lower-quality action sequence
+These preference pairs can be used to train a DPO-style proposal policy, encouraging the policy to assign higher likelihood to plans predicted to have better planning quality.
 
-4. **Train the DPO proposal policy**  
-   A proposal policy is optimized with DPO to assign higher likelihood to preferred action sequences.
+### 3. Generate candidate plans during evaluation
 
-5. **Evaluate DPO-Shooting**  
-   During planning, the trained proposal policy samples action candidates for latent-space shooting, improving sampling efficiency compared with purely random CEM-style proposals.
+At test time, the learned proposal policy samples \(K\) candidate action plans in a single shot.  
+Unlike full CEM, this process does not perform iterative sampling, refitting, and refinement.
+
+### 4. Score and select with the frozen world model
+
+Each sampled candidate plan is rolled out by the frozen LeWM predictor.  
+The predicted latent trajectory is scored using the latent cost with respect to the goal latent state.
+
+The candidate with the lowest predicted world-model cost is selected:
+
+\[
+a^*_{1:H} = \arg\min_{a^{(k)}_{1:H}} C(\hat{z}^{(k)}_H, z_g)
+\]
+
+Only the first action block of the selected plan is executed, following a receding-horizon planning setup.
+
+### 5. Proposal-Shooting vs. Full CEM
+
+Compared with full CEM, Proposal-Shooting keeps the same frozen world-model scorer but replaces iterative random proposal refinement with a learned candidate generator.
+
+Full CEM evaluates a large number of candidates over multiple refinement steps, e.g., \(300 \times 30 = 9000\) plan evaluations per replanning step.  
+In contrast, Proposal-Shooting evaluates only \(K\) sampled candidates, such as \(K=64\) or \(K=128\), without iterative CEM refinement.
+
+This improves sampling efficiency while preserving the world-model-based plan selection mechanism.
 
 ### Usage
 
